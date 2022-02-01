@@ -1,4 +1,4 @@
-package com.example.sos
+package com.example.sos.Utils
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider

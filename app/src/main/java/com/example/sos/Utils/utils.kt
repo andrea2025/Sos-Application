@@ -9,7 +9,7 @@ import android.view.View
 import android.widget.Toast
 import com.google.android.material.snackbar.Snackbar
 
-object Utils {
+object UtilsFile {
     fun View.showSnackbar(
         view: View,
         msg: String,

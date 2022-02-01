@@ -17,8 +17,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import com.example.sos.Repository.SosRepository
-import com.example.sos.Utils.Alert
-import com.example.sos.Utils.showSnackbar
+import com.example.sos.Utils.ViewModelFactory
+
+import com.example.sos.UtilsFile.Alert
+import com.example.sos.UtilsFile.showSnackbar
 import com.example.sos.ViewModel.MainViewModel
 import com.example.sos.databinding.ActivityMainBinding
 import com.example.sos.model.SosInfoRequest
