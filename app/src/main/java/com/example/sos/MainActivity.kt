@@ -1,17 +1,30 @@
 package com.example.sos
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Context
 import android.content.pm.PackageManager
-import androidx.appcompat.app.AppCompatActivity
+import android.location.Location
+import android.location.LocationManager
 import android.os.Bundle
+import android.os.Looper
+import android.util.Base64
 import android.util.Log
 import android.view.View
-import androidx.activity.result.ActivityResultLauncher
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.app.ActivityCompat
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModelProvider
+import com.example.sos.Repository.SosRepository
+import com.example.sos.Utils.Alert
 import com.example.sos.Utils.showSnackbar
+import com.example.sos.ViewModel.MainViewModel
 import com.example.sos.databinding.ActivityMainBinding
+import com.example.sos.model.SosInfoRequest
+import com.example.sos.network.ApiService
+import com.example.sos.network.ResponseManager
+import com.google.android.gms.location.*
 import com.google.android.material.snackbar.Snackbar
 import com.otaliastudios.cameraview.CameraListener
 import com.otaliastudios.cameraview.CameraView
@@ -22,113 +35,159 @@ class MainActivity : AppCompatActivity() {
     lateinit var binding: ActivityMainBinding
     private lateinit var layout: View
     private lateinit var camera: CameraView
-    private lateinit var checkLocationPermission: ActivityResultLauncher<Array<String>>
-    private var permissionsRequired = arrayOf(Manifest.permission.CAMERA, Manifest.permission.ACCESS_FINE_LOCATION)
+    private val retrofitService = ApiService.getInstance()
+    private val viewModel by lazy {
+        ViewModelProvider(this, ViewModelFactory(SosRepository(retrofitService)))
+            .get(MainViewModel::class.java)
+    }
+
+    private lateinit var fusedLocationProviderClient: FusedLocationProviderClient
+    private lateinit var locationRequest: LocationRequest
+    var placeLat: String? = null
+    var placeCordinate: List<String>? = null
+    var placeLong: String? = null
+    var imageString: String? = null
+    private var currentLocation: Location? = null
+    //pre configured phone numbers
+    var phoneNumber = arrayOf("09015650808", "09012345578")
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
         layout = binding.mainLayout
         camera = binding.camera
         camera.setLifecycleOwner(this)
+        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
+
         takePhoto()
-
-//        checkLocationPermission = registerForActivityResult(
-//            ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-//            if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-//                permissions[Manifest.permission.CAMERA] == true) {
-//                layout.showSnackbar(
-//                    layout,
-//                    getString(R.string.permission_granted),
-//                    Snackbar.LENGTH_INDEFINITE,
-//                    getString(R.string.ok)
-//                ) {
-//                    onClickRequestPermission()
-//
-//                }
-//            } else {
-//                // Permission was denied. Display an error message.
-//            }
-//        }
-
     }
 
-//    private ActivityResultLauncher<String> requestPermissionLauncher =
-//        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions(),isGranted
-//        ) {
-//            if (it.){
-//
-//            }
-//
-//        }
 
-    fun onClickRequestPermission() {
-            if (ActivityCompat.checkSelfPermission(this,
-                    Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-                ActivityCompat.checkSelfPermission(this,
-                    Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                layout.showSnackbar(
-                    layout,
-                    getString(R.string.permission_granted),
-                    Snackbar.LENGTH_INDEFINITE,
-                    getString(R.string.ok)
-                ) {
-                    takePhoto()
-                }
-            } else {
-                checkLocationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.CAMERA))
-            }
-
-//        when {
-//            ContextCompat.checkSelfPermission(
-//                this,
-//                Manifest.permission.CAMERA
-//            ) == PackageManager.PERMISSION_GRANTED -> {
-//                layout.showSnackbar(
-//                    layout,
-//                    getString(R.string.permission_granted),
-//                    Snackbar.LENGTH_INDEFINITE,
-//                    getString(R.string.ok)
-//                ) {
-//                    takePhoto()
-//                }
-//            }
-//
-//            ActivityCompat.shouldShowRequestPermissionRationale(
-//                this,
-//                Manifest.permission.CAMERA
-//            ) -> {
-//                layout.showSnackbar(
-//                    layout,
-//                    getString(R.string.permission_required),
-//                    Snackbar.LENGTH_INDEFINITE,
-//                    getString(R.string.ok)
-//                ) {
-//                    requestPermissionLauncher.launch(
-//                        Manifest.permission.CAMERA
-//                    )
-//                }
-//            }
-//
-//            else -> {
-//              // requestPermission(arrayOf(Manifest.permission.CAMERA,Manifest.permission.))
-//            }
-//        }
+    private fun isLocationEnabled(): Boolean {
+        var locationManager: LocationManager =
+            this.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) || locationManager.isProviderEnabled(
+            LocationManager.NETWORK_PROVIDER
+        )
     }
-
 
     private fun takePhoto() {
         binding.takePicture.setOnClickListener {
             camera.addCameraListener(object : CameraListener() {
                 override fun onPictureTaken(result: PictureResult) {
-                    Log.i("hgrgg",result.data.toString())
-                    // A Picture was taken!
+                    imageString = Base64.encodeToString(result.data, 0)
+                    permission()
                 }
             })
             camera.takePicture()
         }
+    }
 
+
+    private fun permissionAcesss() {
+        when (PackageManager.PERMISSION_GRANTED) {
+            ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION),
+            -> {
+                if (isLocationEnabled()) {
+                    fusedLocationProviderClient.lastLocation.addOnCompleteListener(this) { task ->
+                        var location: Location? = task.result
+                        if (location == null) {
+                            requestNewLocationData()
+                            if (fusedLocationProviderClient != null) {
+                                fusedLocationProviderClient.removeLocationUpdates(mLocationCallback)
+                            }
+                        } else {
+                            placeLat = location.latitude.toString()
+                            placeLong = location.longitude.toString()
+                            placeCordinate = listOf<String>(placeLong!!, placeLat!!)
+                            sosRequest(imageString!!)
+                        }
+                    }
+                } else {
+                    this@MainActivity.Alert()
+                }
+            }
+            else -> {
+                permission()
+            }
+        }
+    }
+
+    private fun permission() {
+        if (shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION)) {
+            Log.i("uuu", "permission required")
+            layout.showSnackbar(
+                layout,
+                "permission  is required to access your location",
+                Snackbar.LENGTH_INDEFINITE,
+                "ok"
+            ) {
+                requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+        } else {
+            requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+
+    private val requestPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
+            if (isGranted) {
+                Log.i("uuu", "permission granted")
+                permissionAcesss()
+            } else {
+                Log.i("uuu", "permission denied")
+                permission()
+            }
+        }
+
+
+    @SuppressLint("MissingPermission")
+    private fun requestNewLocationData() {
+        locationRequest = LocationRequest()
+        locationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+        locationRequest.interval = 0
+        locationRequest.fastestInterval = 0
+        locationRequest.numUpdates = 1
+        fusedLocationProviderClient.requestLocationUpdates(locationRequest,
+            mLocationCallback,
+            Looper.myLooper())
+    }
+
+    private val mLocationCallback = object : LocationCallback() {
+        override fun onLocationResult(locationResult: LocationResult) {
+            super.onLocationResult(locationResult)
+            currentLocation = locationResult.lastLocation
+
+        }
+    }
+
+    private fun sosRequest(imageString: String) {
+        val request = SosInfoRequest(phoneNumber.toList(), imageString,
+            placeCordinate)
+        makeSosRequest(request)
+    }
+
+
+    private fun makeSosRequest(sosInfoRequest: SosInfoRequest) {
+        viewModel?.sendSosRequest(sosInfoRequest)?.observe(this) { response ->
+            when (response) {
+                is ResponseManager.Failure -> {
+                    Toast.makeText(applicationContext,"Request Failed", Toast.LENGTH_LONG).show()
+                }
+                is ResponseManager.Loading -> {
+
+                }
+                is ResponseManager.Success -> {
+                    Toast.makeText(applicationContext,"Request Successful", Toast.LENGTH_LONG).show()
+
+                }
+
+            }
+        }
 
     }
 }

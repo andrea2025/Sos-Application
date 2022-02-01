@@ -10,7 +10,7 @@
     <com.otaliastudios.cameraview.CameraView
         android:id="@+id/camera"
         android:layout_width="wrap_content"
-        android:layout_height="600dp"
+        android:layout_height="match_parent"
         app:cameraMode="picture"
         app:cameraFacing="back"
         app:cameraGesturePinch="zoom"
@@ -21,16 +21,17 @@
     </com.otaliastudios.cameraview.CameraView>
 
     <!-- Watermark! -->
-    <ImageView
+    <Button
         android:id="@+id/takePicture"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center|bottom"
-        android:src="@drawable/ic_camera"
+        android:layout_marginBottom="44dp"
+        android:background="@drawable/ic_camera"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.468"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_drawOnPictureSnapshot="true"
-        app:layout_drawOnPreview="true" />
+       />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
