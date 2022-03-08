@@ -106,6 +106,7 @@ class MainActivity : AppCompatActivity() {
                             placeLat = location.latitude.toString()
                             placeLong = location.longitude.toString()
                             placeCordinate = listOf<String>(placeLong!!, placeLat!!)
+                            Log.i("ggg",placeCordinate.toString())
                             sosRequest(imageString!!)
                         }
                     }
@@ -168,8 +169,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sosRequest(imageString: String) {
+        val locationCordinate = com.example.sos.model.Location(placeLat.toString(),placeLong.toString())
         val request = SosInfoRequest(phoneNumber.toList(), imageString,
-            placeCordinate)
+            locationCordinate)
+      //  Log.i("ggib",request.toString())
         makeSosRequest(request)
     }
 
@@ -178,6 +181,8 @@ class MainActivity : AppCompatActivity() {
         viewModel?.sendSosRequest(sosInfoRequest)?.observe(this) { response ->
             when (response) {
                 is ResponseManager.Failure -> {
+                    Log.i("Error", response.error.toString()
+                    )
                     Toast.makeText(applicationContext,"Request Failed", Toast.LENGTH_LONG).show()
                 }
                 is ResponseManager.Loading -> {

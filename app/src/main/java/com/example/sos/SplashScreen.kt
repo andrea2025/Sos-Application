@@ -1,11 +1,10 @@
-package com.example.sos.model
+package com.example.sos
 
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import com.example.sos.MainActivity
 import com.example.sos.databinding.ActivitySplashScreenBinding
 
 class SplashScreen : AppCompatActivity() {

@@ -1,5 +1,6 @@
 package com.example.sos.ViewModel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
@@ -13,9 +14,11 @@ class MainViewModel constructor(private val sosRepository: SosRepository) : View
         sosRepository.sosFeed(sosInfoRequest).onEach { response ->
             when (response) {
                 is ResponseManager.Success -> {
+                    Log.i("success",response.data.status)
 
                 }
                 is ResponseManager.Failure -> {
+                    Log.i("failed",response.error.toString())
 
                 }
                 is ResponseManager.Loading -> {
